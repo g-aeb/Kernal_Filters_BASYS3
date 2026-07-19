@@ -1,0 +1,28 @@
+# Vivado project-generated files
+*.jou
+*.log
+*.str
+*.zip
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.srcs/*.xml
+*.gen/
+*.xpr
+*.dcp
+*.bit
+*.ltx
+*.mmi
+vivado_pid*.debug
+webtalk*.log
+webtalk*.jou
+usage_statistics_webtalk.html
+usage_statistics_webtalk.xml
+.jupyter/
+
+# OS
+Thumbs.db
+.DS_Store
