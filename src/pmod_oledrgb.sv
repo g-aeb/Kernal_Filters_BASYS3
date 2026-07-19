@@ -34,7 +34,12 @@ module pmod_oledrgb #(
     output logic oled_csn,
     output logic oled_resn,
     output logic oled_vccen,
-    output logic oled_pmoden
+    output logic oled_pmoden,
+
+    // High once the init sequence and address-window setup have both
+    // completed and pixel streaming has begun. Intended for a top-level
+    // debug LED, not part of the functional datapath.
+    output logic streaming
 );
 
   localparam int NUM_PIX = IMG_WIDTH * IMG_HEIGHT;
@@ -322,5 +327,7 @@ module pmod_oledrgb #(
       endcase
     end
   end
+
+  assign streaming = (state == OS_STREAM_ADDR) || (state == OS_STREAM_HI) || (state == OS_STREAM_LO);
 
 endmodule

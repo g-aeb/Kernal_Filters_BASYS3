@@ -38,11 +38,21 @@ image_rom --> [pre-stage: identity/blur] --+--> [Gx]      -> gx     --+
 
 Switches: `SW[1:0]` select the display mode, `SW[2]` enables cascade; changing either triggers a fresh render pass. `SW[15:3]` are reserved (e.g. for selecting among multiple stored images later). `BTNC` is the global reset.
 
+`LD[3:0]` are a permanent bring-up/health-check debug ladder for the OLED path, since the SPI protocol and pin mapping to the physical panel can't be verified in simulation:
+
+| LED | Meaning | If it never lights |
+|---|---|---|
+| LD0 | Heartbeat — blinks off the system clock, independent of everything else | Bitstream isn't running at all |
+| LD1 | `oled_resn` — goes high ~1ms after reset releases and stays high | OLED driver's power-up sequencing or the `oled_resn` pin mapping |
+| LD2 | Sticky: latches once the init sequence + address-window setup finish and pixel streaming starts | SPI/init FSM is stuck — suspect the SPI clock mode assumption or the permanently-low chip-select |
+| LD3 | Sticky: latches once a full render pass into the frame buffer completes | Image pipeline itself (independent of the OLED path) |
+
 ## Hardware
 
 - **Board**: Digilent Basys 3 (Xilinx Artix-7 XC7A35T)
 - **Display**: PMOD OLEDrgb — 96x64 RGB OLED, 16-bit color (RGB565), SSD1331-based, connected via PMOD JB (SPI)
 - **Inputs**: Basys 3 slide switches (filter mode select / cascade enable), BTNC (reset)
+- **Outputs**: LD0-LD3 (bring-up debug LEDs, see table above)
 
 ## Toolchain
 
@@ -105,4 +115,4 @@ Every module below `top.sv` has been simulated (with Icarus Verilog) and checked
 
 ## Status
 
-Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> frame buffer -> OLED driver). Not yet run on real hardware — the PMOD OLEDrgb pin mapping and SSD1331 init sequence in particular should be treated as a first draft to verify against the board before trusting it fully.
+Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> frame buffer -> OLED driver). Running on real hardware now, currently bringing up the display: first bitstream produced no visible output on the OLED. The PMOD OLEDrgb pin mapping and SSD1331 init sequence were always flagged as the one part of this project that couldn't be verified without real hardware (see `pmod_oledrgb.sv`/`basys3.xdc` comments), and that's the leading suspect. The LD[3:0] debug ladder above was added specifically to narrow this down without needing an oscilloscope or logic analyzer.

@@ -9,6 +9,25 @@
 // SW[15:3] are reserved for future use (e.g. selecting among multiple
 // stored images). Changing any of SW[2:0] triggers a fresh render pass;
 // BTNC is the global reset.
+//
+// LD[3:0] are a bring-up debug ladder for the OLED path, since the SPI
+// protocol/pin mapping to the physical panel can't be verified in
+// simulation:
+//   LD0 - heartbeat: blinks off the system clock, independent of
+//         everything else. If this isn't blinking, the bitstream isn't
+//         running at all.
+//   LD1 - oled_resn: should go high (and stay high) a little over a
+//         millisecond after reset releases. If LD0 blinks but this never
+//         lights, the OLED driver's power-up sequencing or the oled_resn
+//         pin mapping is the problem.
+//   LD2 - sticky: latches high the first time the OLED driver finishes
+//         its init sequence and address-window setup and starts
+//         streaming pixels. If LD1 lights but this never does, the
+//         SPI/init FSM is stuck -- suspect the SPI clock mode or the
+//         permanently-low chip-select assumption.
+//   LD3 - sticky: latches high the first time a full render pass into
+//         the frame buffer completes. Independent of the OLED path --
+//         confirms the image pipeline itself is running.
 module top #(
     parameter  int    IMG_WIDTH  = 96,
     parameter  int    IMG_HEIGHT = 64,
@@ -18,6 +37,8 @@ module top #(
     input logic btnc,
 
     input logic [15:0] sw,
+
+    output logic [3:0] led,
 
     output logic oled_sclk,
     output logic oled_sdin,
@@ -127,6 +148,8 @@ module top #(
   // -----------------------------------------------------------------------
   // OLED output.
   // -----------------------------------------------------------------------
+  logic oled_streaming;
+
   pmod_oledrgb #(
       .IMG_WIDTH (IMG_WIDTH),
       .IMG_HEIGHT(IMG_HEIGHT)
@@ -141,7 +164,41 @@ module top #(
       .oled_csn   (oled_csn),
       .oled_resn  (oled_resn),
       .oled_vccen (oled_vccen),
-      .oled_pmoden(oled_pmoden)
+      .oled_pmoden(oled_pmoden),
+      .streaming  (oled_streaming)
   );
+
+  // -----------------------------------------------------------------------
+  // Debug LEDs (see module header for what each one means).
+  // -----------------------------------------------------------------------
+  logic [25:0] heartbeat_cnt;
+  always_ff @(posedge clk100mhz) begin
+    if (rst) heartbeat_cnt <= '0;
+    else heartbeat_cnt <= heartbeat_cnt + 1'b1;
+  end
+
+  logic streaming_sticky;
+  always_ff @(posedge clk100mhz) begin
+    if (rst) streaming_sticky <= 1'b0;
+    else if (oled_streaming) streaming_sticky <= 1'b1;
+  end
+
+  logic rendering_d;
+  logic render_done_sticky;
+  always_ff @(posedge clk100mhz) begin
+    if (rst) begin
+      rendering_d        <= 1'b0;
+      render_done_sticky <= 1'b0;
+    end else begin
+      rendering_d <= rendering;
+      // A falling edge on `rendering` means a render pass just finished.
+      if (rendering_d && !rendering) render_done_sticky <= 1'b1;
+    end
+  end
+
+  assign led[0] = heartbeat_cnt[25];
+  assign led[1] = oled_resn;
+  assign led[2] = streaming_sticky;
+  assign led[3] = render_done_sticky;
 
 endmodule
