@@ -22,6 +22,15 @@ webtalk*.jou
 usage_statistics_webtalk.html
 usage_statistics_webtalk.xml
 .jupyter/
+vivado/project/
+
+# Simulation
+*.vvp
+sim/*_preview.png
+
+# Python
+__pycache__/
+*.pyc
 
 # OS
 Thumbs.db
