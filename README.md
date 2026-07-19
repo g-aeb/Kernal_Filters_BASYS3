@@ -43,9 +43,11 @@ Switches: `SW[1:0]` select the display mode, `SW[2]` enables cascade; changing e
 | LED | Meaning | If it never lights |
 |---|---|---|
 | LD0 | Heartbeat — blinks off the system clock, independent of everything else | Bitstream isn't running at all |
-| LD1 | `oled_resn` — goes high ~1ms after reset releases and stays high | OLED driver's power-up sequencing or the `oled_resn` pin mapping |
-| LD2 | Sticky: latches once the init sequence + address-window setup finish and pixel streaming starts | SPI/init FSM is stuck — suspect the SPI clock mode assumption or the permanently-low chip-select |
+| LD1 | `oled_resn` — goes high almost immediately after reset releases, dips low briefly (~5us) for the actual reset pulse around the 20ms mark, then stays high | OLED driver's power-up sequencing or the `oled_resn` pin mapping |
+| LD2 | Sticky: latches once the full power-on sequence (~145ms: PMODEN settle, reset pulse, command-lock/init bytes, VCCEN settle, display ON, post-ON wait) finishes and pixel streaming starts | SPI/init FSM is stuck partway through power-on — check the SPI clock mode/idle polarity and the command-lock unlock byte first |
 | LD3 | Sticky: latches once a full render pass into the frame buffer completes | Image pipeline itself (independent of the OLED path) |
+
+LD2 in particular takes a little over 145ms to light after reset (the OLED's documented power-on sequence has ~145ms of mandatory settling time built in), so give it a moment before concluding it's stuck.
 
 ## Hardware
 
@@ -115,4 +117,12 @@ Every module below `top.sv` has been simulated (with Icarus Verilog) and checked
 
 ## Status
 
-Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> frame buffer -> OLED driver). Running on real hardware now, currently bringing up the display: first bitstream produced no visible output on the OLED. The PMOD OLEDrgb pin mapping and SSD1331 init sequence were always flagged as the one part of this project that couldn't be verified without real hardware (see `pmod_oledrgb.sv`/`basys3.xdc` comments), and that's the leading suspect. The LD[3:0] debug ladder above was added specifically to narrow this down without needing an oscilloscope or logic analyzer.
+Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> frame buffer -> OLED driver). Running on real hardware now, bringing up the display: the first bitstream produced no visible output, which was expected to be the highest-risk part of this project (the SPI protocol/pin mapping to the physical panel couldn't be verified in simulation). Cross-checking against Digilent's Pmod OLEDrgb Reference Manual turned up several concrete bugs in the original guesses, since fixed:
+
+- **SPI mode was wrong entirely** — the SSD1331 requires mode 3 (clock idles high, data changes on the falling edge, captured on the rising edge); the original driver used mode 0 (idle low).
+- **Missing command-lock unlock byte** (`0xFD, 0x12`) — without it the controller won't accept any of the configuration commands that follow.
+- **VCCEN power sequencing was backwards** — it must stay low through the entire configuration sequence and only go high afterward, right before the display-ON command, not immediately alongside PMODEN.
+- **PMOD pin mapping was off by one from SCLK onward** — pin 3 on the Pmod OLEDrgb connector is genuinely not-connected, which the original mapping missed, shifting SCK/D-C/RES/VCCEN/PMODEN each one JB position early.
+- Also added the disable-scrolling and explicit GRAM-clear commands from Digilent's documented sequence, and the ~145ms of mandatory power-on settling time (PMODEN/VCCEN/post-display-ON waits) that were missing.
+
+`pmod_oledrgb.sv` and `basys3.xdc` now follow the reference manual's documented sequence and pinout table directly. Not yet confirmed working on the actual board — next step is reprogramming with this fix and checking the LD[3:0] debug ladder above.

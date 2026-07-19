@@ -64,20 +64,24 @@ module tb_pmod_oledrgb;
     repeat (4) @(posedge clk);
     rst = 1'b0;
 
-    // Wait for the first 5 command bytes of the init sequence to shift out.
+    // Wait for the first 5 command bytes of the init sequence to shift out
+    // (command-lock unlock, then display off, then remap/color-depth).
     wait (bytes_seen >= 5);
     @(posedge clk);
 
-    if (first_bytes[0] == 8'hAE && first_bytes[1] == 8'hA0 && first_bytes[2] == 8'h72 &&
-        first_bytes[3] == 8'hA1 && first_bytes[4] == 8'h00) begin
-      $display("PASS: first 5 init command bytes match expected sequence (AE A0 72 A1 00)");
+    if (first_bytes[0] == 8'hFD && first_bytes[1] == 8'h12 && first_bytes[2] == 8'hAE &&
+        first_bytes[3] == 8'hA0 && first_bytes[4] == 8'h72) begin
+      $display("PASS: first 5 init command bytes match expected sequence (FD 12 AE A0 72)");
     end else begin
-      $display("FAIL: init bytes = %02h %02h %02h %02h %02h (expected AE A0 72 A1 00)",
+      $display("FAIL: init bytes = %02h %02h %02h %02h %02h (expected FD 12 AE A0 72)",
                 first_bytes[0], first_bytes[1], first_bytes[2], first_bytes[3], first_bytes[4]);
     end
 
-    if (oled_resn && oled_vccen && oled_pmoden)
-      $display("PASS: resn/vccen/pmoden all high by the time bytes are shifting out");
+    // Per Digilent's documented power-on sequence, VCCEN stays low
+    // throughout the init command sequence and only goes high afterward,
+    // right before the display-ON command -- so it should NOT be high yet.
+    if (oled_resn && !oled_vccen && oled_pmoden)
+      $display("PASS: resn/pmoden high and vccen still low while init bytes are shifting out");
     else
       $display("FAIL: power/reset pins not in expected state during init (resn=%b vccen=%b pmoden=%b)",
                 oled_resn, oled_vccen, oled_pmoden);
@@ -91,8 +95,11 @@ module tb_pmod_oledrgb;
     $finish;
   end
 
+  // Digilent's documented sequence includes ~20ms (PMODEN settle) + ~25ms
+  // (VCCEN settle) + ~100ms (post display-ON) of fixed real-time delay,
+  // so this needs a generous timeout budget.
   initial begin
-    #2_000_000;
+    #200_000_000;
     $display("FAIL: timeout waiting for streaming to reach address 2");
     $finish;
   end

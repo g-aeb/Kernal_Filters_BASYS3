@@ -1,12 +1,14 @@
 ## Basys 3 constraints for the Sobel kernel-filter project.
 ##
 ## Clock, reset button, and switch pin locations below are Digilent's
-## standard Basys 3 Master XDC assignments. The PMOD OLEDrgb mapping
-## (JB, both rows) follows Digilent's published PmodOLEDrgb-on-Basys3
-## reference pinout (CS/SDIN/SCK/DC on JB1-JB4, RES/VCCEN/PMODEN on
-## JB7-JB9) -- double-check it against the PmodOLEDrgb reference manual
-## and your actual board silkscreen before relying on it; this is the one
-## part of the project that can't be verified without real hardware.
+## standard Basys 3 Master XDC assignments. The PMOD OLEDrgb mapping (JB,
+## both rows, 12-pin connector) follows the Pmod OLEDrgb Reference Manual's
+## own pinout table exactly:
+##   J1 pin:  1    2     3   4    5    6    7    8    9      10       11   12
+##   Signal:  CS   MOSI  NC  SCK  GND  VCC  D/C  RES  VCCEN  PMODEN   GND  VCC
+## mapped 1:1 onto Basys 3's JB1-JB12. Note pin 3 is NC (not connected) --
+## an earlier draft of this file missed that and shifted SCK/D-C/RES/
+## VCCEN/PMODEN each one JB position too early.
 
 ## ---------------------------------------------------------------------
 ## Clock (100 MHz)
@@ -54,14 +56,15 @@ set_property IOSTANDARD LVCMOS33 [get_ports {led[*]}]
 
 ## ---------------------------------------------------------------------
 ## PMOD OLEDrgb (PMOD JB, both rows -- 12-pin connector)
+## JB1=CS, JB2=MOSI, JB3=NC, JB4=SCK, JB7=D/C, JB8=RES, JB9=VCCEN, JB10=PMODEN
 ## ---------------------------------------------------------------------
 set_property PACKAGE_PIN A14 [get_ports oled_csn]
 set_property PACKAGE_PIN A16 [get_ports oled_sdin]
-set_property PACKAGE_PIN B15 [get_ports oled_sclk]
-set_property PACKAGE_PIN B16 [get_ports oled_dc]
-set_property PACKAGE_PIN A15 [get_ports oled_resn]
-set_property PACKAGE_PIN A17 [get_ports oled_vccen]
-set_property PACKAGE_PIN C15 [get_ports oled_pmoden]
+set_property PACKAGE_PIN B16 [get_ports oled_sclk]
+set_property PACKAGE_PIN A15 [get_ports oled_dc]
+set_property PACKAGE_PIN A17 [get_ports oled_resn]
+set_property PACKAGE_PIN C15 [get_ports oled_vccen]
+set_property PACKAGE_PIN C16 [get_ports oled_pmoden]
 set_property IOSTANDARD LVCMOS33 [get_ports {oled_csn oled_sdin oled_sclk oled_dc oled_resn oled_vccen oled_pmoden}]
 
 ## ---------------------------------------------------------------------
