@@ -68,24 +68,6 @@ set_property PACKAGE_PIN C16 [get_ports oled_pmoden]
 set_property IOSTANDARD LVCMOS33 [get_ports {oled_csn oled_sdin oled_sclk oled_dc oled_resn oled_vccen oled_pmoden}]
 
 ## ---------------------------------------------------------------------
-## PMOD OLEDrgb bring-up diagnostic duplicate (PMOD JC, both rows)
-## Every oled_* signal above is fanned out bit-identically to oled2_* /
-## JC in top.sv, confirmed against the Basys 3 Reference Manual's own
-## pinout table (same JC1/JC2/JC4/JC7/JC8/JC9/JC10 positions as JB).
-## Lets the physical module be moved to JC to isolate a bad port/
-## connection without resynthesizing. Remove once the display is
-## confirmed working on JB.
-## ---------------------------------------------------------------------
-set_property PACKAGE_PIN K17 [get_ports oled2_csn]
-set_property PACKAGE_PIN M18 [get_ports oled2_sdin]
-set_property PACKAGE_PIN P18 [get_ports oled2_sclk]
-set_property PACKAGE_PIN L17 [get_ports oled2_dc]
-set_property PACKAGE_PIN M19 [get_ports oled2_resn]
-set_property PACKAGE_PIN P17 [get_ports oled2_vccen]
-set_property PACKAGE_PIN R18 [get_ports oled2_pmoden]
-set_property IOSTANDARD LVCMOS33 [get_ports {oled2_csn oled2_sdin oled2_sclk oled2_dc oled2_resn oled2_vccen oled2_pmoden}]
-
-## ---------------------------------------------------------------------
 ## Config
 ## ---------------------------------------------------------------------
 set_property CONFIG_VOLTAGE 3.3 [current_design]

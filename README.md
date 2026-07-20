@@ -56,8 +56,6 @@ LD2 in particular takes a little over 145ms to light after reset (the OLED's doc
 - **Inputs**: Basys 3 slide switches (filter mode select / cascade enable), BTNC (reset)
 - **Outputs**: LD0-LD3 (bring-up debug LEDs, see table above)
 
-**Bring-up diagnostic**: every OLED control/data signal is currently fanned out bit-identically to *both* PMOD JB and PMOD JC (`oled_*` and `oled2_*` in `top.sv`/`basys3.xdc`), so the physical module can be tried on either connector from a single bitstream while narrowing down a display-not-lighting-up issue, without resynthesizing between attempts. Remove the JC duplication (`oled2_*` port list, the two `assign` blocks in the OLED output section of `top.sv`, and the matching XDC section) once the display is confirmed working on JB.
-
 ## Toolchain
 
 - **HDL**: Verilog / SystemVerilog
@@ -82,6 +80,7 @@ Kernal_Filters_BASYS3/
 ├── sim/                      # Testbenches + generated .mem test images
 ├── constraints/basys3.xdc    # Pin mapping, clock constraint
 ├── vivado/build.tcl          # Recreates the Vivado project from scratch
+├── photos/                   # Pictures of the board/display running
 └── tools/
     ├── gen_test_image.py     # Synthetic placeholder test image generator
     └── img_to_mem.py         # Downsizes a real photo to 96x64 for image_rom
@@ -119,7 +118,11 @@ Every module below `top.sv` has been simulated (with Icarus Verilog) and checked
 
 ## Status
 
-Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> frame buffer -> OLED driver). Running on real hardware now, bringing up the display: the first bitstream produced no visible output, which was expected to be the highest-risk part of this project (the SPI protocol/pin mapping to the physical panel couldn't be verified in simulation). Cross-checking against Digilent's Pmod OLEDrgb Reference Manual turned up several concrete bugs in the original guesses, since fixed:
+Working end-to-end on real hardware: image source -> Sobel pipeline -> frame buffer -> OLED driver, displayed live on the PMOD OLEDrgb over PMOD JB. See `photos/` for pictures of the board running.
+
+Getting here took two rounds of hardware bring-up, since the SPI protocol/pin mapping to the physical panel couldn't be verified in simulation:
+
+**Round 1 — no output at all.** Cross-checking against Digilent's Pmod OLEDrgb Reference Manual turned up several concrete bugs in the original guesses:
 
 - **SPI mode was wrong entirely** — the SSD1331 requires mode 3 (clock idles high, data changes on the falling edge, captured on the rising edge); the original driver used mode 0 (idle low).
 - **Missing command-lock unlock byte** (`0xFD, 0x12`) — without it the controller won't accept any of the configuration commands that follow.
@@ -127,4 +130,4 @@ Core RTL complete and simulated end-to-end (image source -> Sobel pipeline -> fr
 - **PMOD pin mapping was off by one from SCLK onward** — pin 3 on the Pmod OLEDrgb connector is genuinely not-connected, which the original mapping missed, shifting SCK/D-C/RES/VCCEN/PMODEN each one JB position early.
 - Also added the disable-scrolling and explicit GRAM-clear commands from Digilent's documented sequence, and the ~145ms of mandatory power-on settling time (PMODEN/VCCEN/post-display-ON waits) that were missing.
 
-`pmod_oledrgb.sv` and `basys3.xdc` now follow the reference manual's documented sequence and pinout table directly. Not yet confirmed working on the actual board — next step is reprogramming with this fix and checking the LD[3:0] debug ladder above.
+**Round 2 — still dark after the above.** To rule out a bad physical connector, every OLED signal was temporarily fanned out to both PMOD JB and PMOD JC from a single bitstream (since removed) so the module could be tried on either without resynthesizing — still dark on both, which pointed away from the connector and at the driver logic instead. The actual cause: `pmod_oledrgb.sv`'s `oled_dc` (data/command select) signal was driven by two separate `always_ff` blocks — the low-level SPI byte-shifter (correctly, per-byte) and a leftover direct assignment in the top-level power-on FSM (always to constant `0`). Simulators silently resolve multi-driven signals like this by event order, so it passed simulation every time, but Vivado's synthesizer collapsed the conflict to the constant driver and discarded the real one, permanently tying `oled_dc` to command mode — every pixel byte streamed out was interpreted by the SSD1331 as a command, so nothing ever rendered, regardless of connector. The FPGA-side debug LEDs (LD0-LD3) still reported a clean power-on and streaming start throughout, since they only reflect internal FSM state, not what the physical panel did with the bytes. Removing the redundant FSM-side drive fixed it.
