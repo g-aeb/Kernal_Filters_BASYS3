@@ -10,8 +10,8 @@ set part      "xc7a35tcpg236-1"
 create_project $proj_name $proj_dir -part $part -force
 
 add_files -norecurse [glob ./src/*.sv]
-add_files -norecurse ./sim/test_image.mem
-set_property file_type {Memory Initialization Files} [get_files test_image.mem]
+add_files -norecurse ./sim/frame_store.mem
+set_property file_type {Memory Initialization Files} [get_files frame_store.mem]
 
 add_files -fileset sim_1 -norecurse [glob ./sim/tb_*.sv]
 add_files -fileset sim_1 -norecurse [glob ./sim/*.mem]

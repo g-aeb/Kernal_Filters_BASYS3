@@ -18,14 +18,21 @@ set_property IOSTANDARD LVCMOS33 [get_ports clk100mhz]
 create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports clk100mhz]
 
 ## ---------------------------------------------------------------------
-## Reset button (BTNC)
+## Buttons: BTNC = global reset, BTNL/BTNR = manual frame step
+## (frame_nav.sv). Source: Digilent's official digilent-xdc GitHub repo
+## (Basys-3-Master.xdc) -- still worth a final glance at the board
+## silkscreen/Reference Manual before flashing, per this project's own
+## established practice (see README Status section).
 ## ---------------------------------------------------------------------
 set_property PACKAGE_PIN U18 [get_ports btnc]
-set_property IOSTANDARD LVCMOS33 [get_ports btnc]
+set_property PACKAGE_PIN W19 [get_ports btnl]
+set_property PACKAGE_PIN T17 [get_ports btnr]
+set_property IOSTANDARD LVCMOS33 [get_ports {btnc btnl btnr}]
 
 ## ---------------------------------------------------------------------
 ## Slide switches (SW0-SW15)
-## SW0-SW1 = display mode, SW2 = cascade enable, SW3-SW15 = reserved
+## SW0-SW1 = display mode, SW2 = cascade enable, SW3 = frame auto-play
+## enable (frame_nav.sv), SW4-SW15 = reserved
 ## ---------------------------------------------------------------------
 set_property PACKAGE_PIN V17 [get_ports {sw[0]}]
 set_property PACKAGE_PIN V16 [get_ports {sw[1]}]
@@ -66,6 +73,27 @@ set_property PACKAGE_PIN A17 [get_ports oled_resn]
 set_property PACKAGE_PIN C15 [get_ports oled_vccen]
 set_property PACKAGE_PIN C16 [get_ports oled_pmoden]
 set_property IOSTANDARD LVCMOS33 [get_ports {oled_csn oled_sdin oled_sclk oled_dc oled_resn oled_vccen oled_pmoden}]
+
+## ---------------------------------------------------------------------
+## 4-digit 7-segment display (frame-index readout, seg7.sv). Only an[1:0]
+## are ever driven active (2-digit decimal 0-99); an[3:2] tied off inside
+## seg7.sv itself. Same source/verify note as the buttons above; dp (V7)
+## is intentionally left unconstrained since nothing drives it.
+## ---------------------------------------------------------------------
+set_property PACKAGE_PIN W7 [get_ports {seg[0]}]
+set_property PACKAGE_PIN W6 [get_ports {seg[1]}]
+set_property PACKAGE_PIN U8 [get_ports {seg[2]}]
+set_property PACKAGE_PIN V8 [get_ports {seg[3]}]
+set_property PACKAGE_PIN U5 [get_ports {seg[4]}]
+set_property PACKAGE_PIN V5 [get_ports {seg[5]}]
+set_property PACKAGE_PIN U7 [get_ports {seg[6]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {seg[*]}]
+
+set_property PACKAGE_PIN U2 [get_ports {an[0]}]
+set_property PACKAGE_PIN U4 [get_ports {an[1]}]
+set_property PACKAGE_PIN V4 [get_ports {an[2]}]
+set_property PACKAGE_PIN W4 [get_ports {an[3]}]
+set_property IOSTANDARD LVCMOS33 [get_ports {an[*]}]
 
 ## ---------------------------------------------------------------------
 ## Config
