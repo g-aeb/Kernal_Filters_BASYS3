@@ -39,6 +39,7 @@ module tb_top_smoke;
   render_ctrl #(
       .IMG_WIDTH (IMG_WIDTH),
       .IMG_HEIGHT(IMG_HEIGHT),
+      .NUM_FRAMES(1),
       .INIT_FILE ("tb_sobel_test_image.mem")
   ) u_render_ctrl (
       .clk           (clk),
@@ -46,6 +47,7 @@ module tb_top_smoke;
       .disp_mode     (disp_mode),
       .cascade_en    (cascade_en),
       .render_trigger(render_trigger),
+      .frame_idx     (1'b0),
       .fb_we         (fb_we),
       .fb_waddr      (fb_waddr),
       .fb_wdata      (fb_wdata),

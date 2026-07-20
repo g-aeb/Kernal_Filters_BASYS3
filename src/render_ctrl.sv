@@ -5,8 +5,9 @@
 // sobel_pipeline and writes each output pixel to its (row, col) address,
 // converting the 8-bit grayscale display value to RGB565.
 //
-// A render pass is triggered by render_trigger (pulsed on reset and
-// whenever the mode switches change -- see top.sv). Re-clearing before
+// A render pass is triggered by render_trigger (pulsed on reset, whenever
+// the mode switches change, or whenever frame_idx changes -- see top.sv).
+// Re-clearing before
 // every pass matters because different modes crop a different-sized
 // border (bypass/Gx/Gy/magnitude all share the same 2px crop today, but
 // this keeps it correct if that ever changes), so stale border pixels
@@ -20,9 +21,11 @@ module render_ctrl #(
     parameter  int    IMG_WIDTH  = 96,
     parameter  int    IMG_HEIGHT = 64,
     parameter  int    PIX_W      = 8,
-    parameter  string INIT_FILE  = "test_image.mem",
-    localparam int    NUM_PIX    = IMG_WIDTH * IMG_HEIGHT,
-    localparam int    ADDR_W     = $clog2(NUM_PIX)
+    parameter  int    NUM_FRAMES = 24,
+    parameter  string INIT_FILE  = "frame_store.mem",
+    localparam int    NUM_PIX      = IMG_WIDTH * IMG_HEIGHT,
+    localparam int    ADDR_W       = $clog2(NUM_PIX),
+    localparam int    FRAME_IDX_W  = (NUM_FRAMES > 1) ? $clog2(NUM_FRAMES) : 1
 ) (
     input logic clk,
     input logic rst,
@@ -30,6 +33,7 @@ module render_ctrl #(
     input logic [1:0] disp_mode,
     input logic       cascade_en,
     input logic       render_trigger,
+    input logic [FRAME_IDX_W-1:0] frame_idx,
 
     output logic              fb_we,
     output logic [ADDR_W-1:0] fb_waddr,
@@ -60,16 +64,18 @@ module render_ctrl #(
   logic [COL_W-1:0] rom_col;
   logic [ROW_W-1:0] rom_row;
 
-  image_rom #(
+  frame_store #(
       .IMG_WIDTH (IMG_WIDTH),
       .IMG_HEIGHT(IMG_HEIGHT),
       .PIX_W     (PIX_W),
+      .NUM_FRAMES(NUM_FRAMES),
       .INIT_FILE (INIT_FILE)
-  ) u_rom (
+  ) u_frame_store (
       .clk        (clk),
       .rst        (rst),
       .frame_start(rom_frame_start),
       .rd_en      (rom_rd_en),
+      .frame_idx  (frame_idx),
       .pix_valid  (rom_valid),
       .pix_data   (rom_pix),
       .col        (rom_col),
