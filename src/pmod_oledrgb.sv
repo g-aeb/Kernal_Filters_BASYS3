@@ -258,7 +258,6 @@ module pmod_oledrgb #(
   always_ff @(posedge clk) begin
     if (rst) begin
       state       <= OS_RESET;
-      oled_dc     <= 1'b0;
       oled_resn   <= 1'b1;
       oled_vccen  <= 1'b0;
       oled_pmoden <= 1'b0;
@@ -276,7 +275,6 @@ module pmod_oledrgb #(
         // D/C low, RES high, VCCEN low -- entry state for the whole
         // sequence, then move straight on to bringing PMODEN up.
         OS_RESET: begin
-          oled_dc     <= 1'b0;
           oled_resn   <= 1'b1;
           oled_vccen  <= 1'b0;
           oled_pmoden <= 1'b1;
