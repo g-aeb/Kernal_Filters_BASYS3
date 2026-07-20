@@ -2,6 +2,8 @@
 
 A reconfigurable spatial-convolution kernel filter, implemented in Verilog/SystemVerilog for the Digilent Basys 3 (Xilinx Artix-7) FPGA, applied to Sobel edge detection and displayed on a PMOD OLEDrgb.
 
+![Test image running live on the PMOD OLEDrgb](photos/Raw_no_filter.jpg)
+
 ## Overview
 
 Sobel edge detection works by convolving an image with two small kernels — one that responds to vertical edges (Gx) and one that responds to horizontal edges (Gy). The classic 3x3 Sobel kernels are:
@@ -118,16 +120,11 @@ Every module below `top.sv` has been simulated (with Icarus Verilog) and checked
 
 ## Status
 
-Working end-to-end on real hardware: image source -> Sobel pipeline -> frame buffer -> OLED driver, displayed live on the PMOD OLEDrgb over PMOD JB. See `photos/` for pictures of the board running.
+Working end-to-end on real hardware: image source -> Sobel pipeline -> frame buffer -> OLED driver, displayed live on the PMOD OLEDrgb over PMOD JB. See `photos/` for the board running.
 
-Getting here took two rounds of hardware bring-up, since the SPI protocol/pin mapping to the physical panel couldn't be verified in simulation:
+Bring-up took two rounds of debugging, since the SPI protocol/pin mapping couldn't be verified in simulation. First, cross-checking against Digilent's reference manual fixed several concrete bugs (wrong SPI mode, a missing command-lock byte, backwards VCCEN power sequencing, an off-by-one pin mapping, and missing power-on settling time). The display was still dark after that fix, which turned out to be a separate bug: `oled_dc` in `pmod_oledrgb.sv` was driven by two different `always_ff` blocks — simulators quietly resolve that by event order, but Vivado's synthesizer collapsed it to a stuck-low constant driver, so every streamed byte was read by the SSD1331 as a command instead of pixel data. Removing the redundant driver fixed it.
 
-**Round 1 — no output at all.** Cross-checking against Digilent's Pmod OLEDrgb Reference Manual turned up several concrete bugs in the original guesses:
+## Stretch Goals / Next Steps
 
-- **SPI mode was wrong entirely** — the SSD1331 requires mode 3 (clock idles high, data changes on the falling edge, captured on the rising edge); the original driver used mode 0 (idle low).
-- **Missing command-lock unlock byte** (`0xFD, 0x12`) — without it the controller won't accept any of the configuration commands that follow.
-- **VCCEN power sequencing was backwards** — it must stay low through the entire configuration sequence and only go high afterward, right before the display-ON command, not immediately alongside PMODEN.
-- **PMOD pin mapping was off by one from SCLK onward** — pin 3 on the Pmod OLEDrgb connector is genuinely not-connected, which the original mapping missed, shifting SCK/D-C/RES/VCCEN/PMODEN each one JB position early.
-- Also added the disable-scrolling and explicit GRAM-clear commands from Digilent's documented sequence, and the ~145ms of mandatory power-on settling time (PMODEN/VCCEN/post-display-ON waits) that were missing.
-
-**Round 2 — still dark after the above.** To rule out a bad physical connector, every OLED signal was temporarily fanned out to both PMOD JB and PMOD JC from a single bitstream (since removed) so the module could be tried on either without resynthesizing — still dark on both, which pointed away from the connector and at the driver logic instead. The actual cause: `pmod_oledrgb.sv`'s `oled_dc` (data/command select) signal was driven by two separate `always_ff` blocks — the low-level SPI byte-shifter (correctly, per-byte) and a leftover direct assignment in the top-level power-on FSM (always to constant `0`). Simulators silently resolve multi-driven signals like this by event order, so it passed simulation every time, but Vivado's synthesizer collapsed the conflict to the constant driver and discarded the real one, permanently tying `oled_dc` to command mode — every pixel byte streamed out was interpreted by the SSD1331 as a command, so nothing ever rendered, regardless of connector. The FPGA-side debug LEDs (LD0-LD3) still reported a clean power-on and streaming start throughout, since they only reflect internal FSM state, not what the physical panel did with the bytes. Removing the redundant FSM-side drive fixed it.
+- **VGA output**: add a second display path alongside the OLED driving the Basys 3's onboard VGA port, so the same Sobel pipeline can render to an external monitor instead of just the 96x64 OLED.
+- **Higher resolution / video**: `image_rom` and `frame_buffer` currently use a small fraction of the XC7A35T's available block RAM. Sizing them up (with double-buffering) would support meaningfully larger still images, and streaming a sequence of frames from BRAM would let the pipeline process video instead of a single static photo.
