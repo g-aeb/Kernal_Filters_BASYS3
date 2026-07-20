@@ -56,6 +56,8 @@ LD2 in particular takes a little over 145ms to light after reset (the OLED's doc
 - **Inputs**: Basys 3 slide switches (filter mode select / cascade enable), BTNC (reset)
 - **Outputs**: LD0-LD3 (bring-up debug LEDs, see table above)
 
+**Bring-up diagnostic**: every OLED control/data signal is currently fanned out bit-identically to *both* PMOD JB and PMOD JC (`oled_*` and `oled2_*` in `top.sv`/`basys3.xdc`), so the physical module can be tried on either connector from a single bitstream while narrowing down a display-not-lighting-up issue, without resynthesizing between attempts. Remove the JC duplication (`oled2_*` port list, the two `assign` blocks in the OLED output section of `top.sv`, and the matching XDC section) once the display is confirmed working on JB.
+
 ## Toolchain
 
 - **HDL**: Verilog / SystemVerilog

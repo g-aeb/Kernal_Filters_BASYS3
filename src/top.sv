@@ -40,13 +40,27 @@ module top #(
 
     output logic [3:0] led,
 
+    // JB: the OLED's "home" connector. JC: a bring-up diagnostic --
+    // every signal below is fanned out identically to both connectors
+    // (see the OLED output section) so the physical module can be moved
+    // between JB and JC to isolate a bad port/connection without
+    // resynthesizing. Remove the JC duplication once the display is
+    // confirmed working.
     output logic oled_sclk,
     output logic oled_sdin,
     output logic oled_dc,
     output logic oled_csn,
     output logic oled_resn,
     output logic oled_vccen,
-    output logic oled_pmoden
+    output logic oled_pmoden,
+
+    output logic oled2_sclk,
+    output logic oled2_sdin,
+    output logic oled2_dc,
+    output logic oled2_csn,
+    output logic oled2_resn,
+    output logic oled2_vccen,
+    output logic oled2_pmoden
 );
 
   localparam int NUM_PIX = IMG_WIDTH * IMG_HEIGHT;
@@ -146,9 +160,14 @@ module top #(
   );
 
   // -----------------------------------------------------------------------
-  // OLED output.
+  // OLED output. u_oled drives a single set of internal signals, fanned
+  // out identically to both the JB and JC connector ports below -- see
+  // the port list comment for why.
   // -----------------------------------------------------------------------
   logic oled_streaming;
+
+  logic oled_sclk_i, oled_sdin_i, oled_dc_i, oled_csn_i;
+  logic oled_resn_i, oled_vccen_i, oled_pmoden_i;
 
   pmod_oledrgb #(
       .IMG_WIDTH (IMG_WIDTH),
@@ -158,15 +177,31 @@ module top #(
       .rst        (rst),
       .fb_raddr   (fb_raddr),
       .fb_rdata   (fb_rdata),
-      .oled_sclk  (oled_sclk),
-      .oled_sdin  (oled_sdin),
-      .oled_dc    (oled_dc),
-      .oled_csn   (oled_csn),
-      .oled_resn  (oled_resn),
-      .oled_vccen (oled_vccen),
-      .oled_pmoden(oled_pmoden),
+      .oled_sclk  (oled_sclk_i),
+      .oled_sdin  (oled_sdin_i),
+      .oled_dc    (oled_dc_i),
+      .oled_csn   (oled_csn_i),
+      .oled_resn  (oled_resn_i),
+      .oled_vccen (oled_vccen_i),
+      .oled_pmoden(oled_pmoden_i),
       .streaming  (oled_streaming)
   );
+
+  assign oled_sclk   = oled_sclk_i;
+  assign oled_sdin   = oled_sdin_i;
+  assign oled_dc     = oled_dc_i;
+  assign oled_csn    = oled_csn_i;
+  assign oled_resn   = oled_resn_i;
+  assign oled_vccen  = oled_vccen_i;
+  assign oled_pmoden = oled_pmoden_i;
+
+  assign oled2_sclk   = oled_sclk_i;
+  assign oled2_sdin   = oled_sdin_i;
+  assign oled2_dc     = oled_dc_i;
+  assign oled2_csn    = oled_csn_i;
+  assign oled2_resn   = oled_resn_i;
+  assign oled2_vccen  = oled_vccen_i;
+  assign oled2_pmoden = oled_pmoden_i;
 
   // -----------------------------------------------------------------------
   // Debug LEDs (see module header for what each one means).
